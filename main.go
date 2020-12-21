@@ -19,14 +19,21 @@ func main() {
 	// this will make a gif, useful if theres a large grid
 	render := &gif.GIF{}
 	Iterate(&grid, 1000, false, true, render)
-	SaveGif(render)
+	err := SaveGif(render)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	// alternatively, this will display it in the console window
 	// Iterate(&grid, 1000, true, false, nil, nil)
 }
-func SaveGif(g *gif.GIF) {
-	f, _ := os.Create("./out.gif")
-	gif.EncodeAll(f, g)
+func SaveGif(g *gif.GIF) error {
+	f, err := os.Create("./out.gif")
+	if err != nil {
+		return err
+	}
+	return gif.EncodeAll(f, g)
 }
 
 func Iterate(g *Grid, steps int, show, makeGif bool, gif *gif.GIF) {
