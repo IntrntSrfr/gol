@@ -10,12 +10,12 @@ var palette = []color.Color{
 	color.White,
 }
 
-func newFrame(grid Grid) *image.Paletted {
-	frame := image.NewPaletted(image.Rect(0, 0, len(grid), len(grid[0])), palette)
+func newFrame(g *Grid) *image.Paletted {
+	frame := image.NewPaletted(image.Rect(0, 0, g.w, g.h), palette)
 
-	for y := 0; y < len(grid); y++ {
-		for x := 0; x < len(grid[y]); x++ {
-			if grid.At(x, y) == 0 {
+	for y := 0; y < g.h; y++ {
+		for x := 0; x < g.w; x++ {
+			if g.At(x, y) == 0 {
 				frame.SetColorIndex(x, y, 0)
 			} else {
 				frame.SetColorIndex(x, y, 1)
