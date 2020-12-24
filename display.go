@@ -3,6 +3,8 @@ package main
 import (
 	"image"
 	"image/color"
+	"image/gif"
+	"os"
 )
 
 var palette = []color.Color{
@@ -10,12 +12,15 @@ var palette = []color.Color{
 	color.White,
 }
 
-func newFrame(g *Grid) *image.Paletted {
-	frame := image.NewPaletted(image.Rect(0, 0, g.w, g.h), palette)
+func newFrame(g *Grid, scale int) *image.Paletted {
+	if scale <= 0 {
+		panic("scale must be positive")
+	}
+	frame := image.NewPaletted(image.Rect(0, 0, g.w*scale, g.h*scale), palette)
 
-	for y := 0; y < g.h; y++ {
-		for x := 0; x < g.w; x++ {
-			if g.At(x, y) == 0 {
+	for y := 0; y < g.h*scale; y++ {
+		for x := 0; x < g.w*scale; x++ {
+			if g.At(x/scale, y/scale) == 0 {
 				frame.SetColorIndex(x, y, 0)
 			} else {
 				frame.SetColorIndex(x, y, 1)
@@ -23,4 +28,12 @@ func newFrame(g *Grid) *image.Paletted {
 		}
 	}
 	return frame
+}
+
+func SaveGif(g *gif.GIF) error {
+	f, err := os.Create("./example.gif")
+	if err != nil {
+		return err
+	}
+	return gif.EncodeAll(f, g)
 }

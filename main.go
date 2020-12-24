@@ -1,8 +1,8 @@
 package main
 
 import (
+	"flag"
 	"fmt"
-	"image/gif"
 	"math/rand"
 	"os"
 	"runtime"
@@ -20,79 +20,54 @@ func main() {
 
 	seed := time.Now().Unix()
 
-	grid := NewGrid(32, 32, seed, true)
-	bufGrid := NewGrid(32, 32, seed, true)
+	grid := NewGrid(64, 64, seed, true)
+	bufGrid := NewGrid(64, 64, seed, true)
 
 	rand.Seed(seed)
 
-	l := (grid.h * grid.w) / 1
+	l := (grid.h * grid.w) / 4
 	for l > 0 {
 		grid.Set(rand.Intn(grid.w), rand.Intn(grid.h), 1)
 		l--
 	}
 
+	display := flag.Bool("show", false, "display iterations")
+
+	var iters int
+	flag.IntVar(&iters, "iters", 1000, "how many iterations")
+
+	var delay int
+	flag.IntVar(&delay, "delay", 150, "delay per frame, useless if -show is not used")
+	flag.Parse()
+
 	grid.DeepCopy(bufGrid)
 	//render := &gif.GIF{}
 
-	for i := 0; i < 1000; i++ {
+	// scale of resulting gif
+	//	scale := 4
+
+	for i := 0; i < iters; i++ {
+
 		grid.Step(bufGrid)
 		grid.DeepCopy(bufGrid)
 
-		//render.Image = append(render.Image, newFrame(grid))
+		//render.Image = append(render.Image, newFrame(grid, scale))
 		//render.Delay = append(render.Delay, 10)
-		grid.Show()
-		time.Sleep(time.Millisecond * 150)
+		if *display {
+			grid.Show()
+			time.Sleep(time.Millisecond * time.Duration(delay))
+		}
 	}
 
-	grid.Show()
-	//SaveGif(render)
-
-	// this will make a gif, useful if theres a large grid
-	/*
-			render := &gif.GIF{}
-		Iterate(grid, 1000, false, true, render)
-		err := SaveGif(render)
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-	*/
-	// alternatively, this will display it in the console window
 	//grid.Show()
-	//Iterate(grid, 100, false, false, nil)
+	//SaveGif(render)
 
 	runtime.GC()
 	pprof.WriteHeapProfile(memF)
-
 }
-func SaveGif(g *gif.GIF) error {
-	f, err := os.Create("./out.gif")
-	if err != nil {
-		return err
-	}
-	return gif.EncodeAll(f, g)
-}
-
-/*
-func Iterate(g *Grid, steps int, show, makeGif bool, gif *gif.GIF) {
-	for i := 0; i < steps; i++ {
-		g = g.Step()
-		if makeGif {
-			if i%(steps/100) == 0 {
-				fmt.Println(i)
-			}
-			gif.Image = append(gif.Image, newFrame(g))
-			gif.Delay = append(gif.Delay, 10)
-		}
-		if show {
-			g.Show()
-			time.Sleep(time.Millisecond * 150)
-		}
-	}
-}*/
 
 type Grid struct {
-	data [][]int
+	data []int
 	h    int
 	w    int
 	gen  int
@@ -113,19 +88,9 @@ func (g *Grid) Step(src *Grid) {
 		for x := 0; x < g.w; x++ {
 			n := src.Neighbours(x, y)
 			at := src.At(x, y)
-			/*
-				if at == 1 && n < 2 {
-					g.Set(x, y, 0)
-				}
-			*/
 			if at == 1 && (n != 2 && n != 3) {
 				g.Set(x, y, 0)
 			}
-			/*
-				if at == 1 && n > 3 {
-					g.Set(x, y, 0)
-				}
-			*/
 			if at == 0 && n == 3 {
 				g.Set(x, y, 1)
 			}
@@ -135,12 +100,7 @@ func (g *Grid) Step(src *Grid) {
 }
 
 func NewGrid(h, w int, seed int64, wrap bool) *Grid {
-
-	grid := make([][]int, h)
-	for i := range grid {
-		grid[i] = make([]int, w)
-	}
-
+	grid := make([]int, h*w)
 	return &Grid{
 		data: grid,
 		h:    h,
@@ -153,15 +113,13 @@ func NewGrid(h, w int, seed int64, wrap bool) *Grid {
 func (g *Grid) DeepCopy(dst *Grid) {
 	for y := 0; y < g.h; y++ {
 		for x := 0; x < g.w; x++ {
-			dst.data[y][x] = g.data[y][x]
+			dst.data[y*g.w+x] = g.data[y*g.w+x]
 		}
 	}
 }
 
 func (g *Grid) Neighbours(x, y int) int {
-
 	count := 0
-
 	for dy := -1; dy < 2; dy++ {
 		for dx := -1; dx < 2; dx++ {
 			if dx == 0 && dy == 0 {
@@ -196,7 +154,7 @@ func (g *Grid) Set(x, y, state int) {
 		}
 	}
 
-	g.data[y][x] = state
+	g.data[y*g.w+x] = state
 }
 func (g *Grid) At(x, y int) int {
 	if g.wrap {
@@ -219,15 +177,10 @@ func (g *Grid) At(x, y int) int {
 		}
 	}
 
-	return g.data[y][x]
+	return g.data[y*g.w+x]
 }
 
 func (g *Grid) Show() {
-	/*
-		cmd := exec.Command("cmd", "/c", "cls")
-		cmd.Stdout = os.Stdout
-		cmd.Run()
-	*/
 
 	index := 0
 	buf := make([]byte, g.h*g.w*2+g.h+256)
@@ -245,7 +198,7 @@ func (g *Grid) Show() {
 	//w.WriteString(fmt.Sprintf("seed:       %v\ngeneration: %v\n", g.seed, g.gen))
 	for y := 0; y < g.h; y++ {
 		for x := 0; x < g.w; x++ {
-			s := g.data[y][x]
+			s := g.data[y*g.w+x] //[x]
 			if s == 0 {
 				buf[index] = '.'
 			} else {
@@ -260,6 +213,9 @@ func (g *Grid) Show() {
 		//w.WriteString("\n")
 	}
 	//fmt.Println(index)
+
+	buf[index] = '\n'
+	index++
 
 	os.Stdout.Write(buf[:index])
 	//os.Stdout.WriteString(fmt.Sprint(buf))
