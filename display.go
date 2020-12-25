@@ -4,7 +4,7 @@ import (
 	"image"
 	"image/color"
 	"image/gif"
-	"os"
+	"io"
 )
 
 var palette = []color.Color{
@@ -30,10 +30,6 @@ func newFrame(g *Grid, scale int) *image.Paletted {
 	return frame
 }
 
-func SaveGif(g *gif.GIF) error {
-	f, err := os.Create("./example.gif")
-	if err != nil {
-		return err
-	}
+func SaveGif(g *gif.GIF, f io.Writer) error {
 	return gif.EncodeAll(f, g)
 }

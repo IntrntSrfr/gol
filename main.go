@@ -3,34 +3,17 @@ package main
 import (
 	"flag"
 	"fmt"
+	"image/gif"
+	"io"
 	"math/rand"
 	"os"
-	"runtime"
-	"runtime/pprof"
+	"strings"
 	"time"
 )
 
 func main() {
 
-	cpuF, _ := os.Create("cpu.prof")
-	memF, _ := os.Create("mem.prof")
-
-	pprof.StartCPUProfile(cpuF)
-	defer pprof.StopCPUProfile()
-
-	seed := time.Now().Unix()
-
-	grid := NewGrid(64, 64, seed, true)
-	bufGrid := NewGrid(64, 64, seed, true)
-
-	rand.Seed(seed)
-
-	l := (grid.h * grid.w) / 4
-	for l > 0 {
-		grid.Set(rand.Intn(grid.w), rand.Intn(grid.h), 1)
-		l--
-	}
-
+	defer fmt.Print("\u001B[0m")
 	display := flag.Bool("show", false, "display iterations")
 
 	var iters int
@@ -40,30 +23,56 @@ func main() {
 	flag.IntVar(&delay, "delay", 150, "delay per frame, useless if -show is not used")
 	flag.Parse()
 
+	out, _ := os.Create("./example.gif")
+
+	NewGame(time.Now().Unix(), 85, 256, iters, delay, true, *display, out, 4)
+
+}
+
+func NewGame(seed int64, height, width, iters, delay int, wrap, display bool, out io.Writer, scale int) {
+	grid := NewGrid(height, width, seed, wrap)
+	bufGrid := NewGrid(height, width, seed, wrap)
+
+	rand.Seed(seed)
+
+	l := (grid.h * grid.w) / 4
+	for l > 0 {
+		grid.Set(rand.Intn(grid.w), rand.Intn(grid.h), 1)
+		l--
+	}
 	grid.DeepCopy(bufGrid)
-	//render := &gif.GIF{}
+
+	var render *gif.GIF
+	if out != nil {
+		render = &gif.GIF{}
+	}
 
 	// scale of resulting gif
-	//	scale := 4
 
+	if display {
+		fmt.Print("\u001b[2J")
+	}
 	for i := 0; i < iters; i++ {
 
 		grid.Step(bufGrid)
 		grid.DeepCopy(bufGrid)
 
-		//render.Image = append(render.Image, newFrame(grid, scale))
-		//render.Delay = append(render.Delay, 10)
-		if *display {
+		if render != nil {
+			render.Image = append(render.Image, newFrame(grid, scale))
+			render.Delay = append(render.Delay, 10)
+		}
+
+		if display {
 			grid.Show()
 			time.Sleep(time.Millisecond * time.Duration(delay))
 		}
 	}
+	if display {
+		grid.Show()
+	}
 
-	//grid.Show()
-	//SaveGif(render)
+	SaveGif(render, out)
 
-	runtime.GC()
-	pprof.WriteHeapProfile(memF)
 }
 
 type Grid struct {
@@ -182,42 +191,64 @@ func (g *Grid) At(x, y int) int {
 
 func (g *Grid) Show() {
 
-	index := 0
-	buf := make([]byte, g.h*g.w*2+g.h+256)
+	/*
+		index := 0
+		buf := make([]byte, g.h*g.w*2+g.h+256)
 
-	inf := fmt.Sprintf("seed:       %v\ngeneration: %v\n", g.seed, g.gen)
-	for range inf {
-		buf[index] = inf[index]
-		index++
-	}
-
+		inf := fmt.Sprintf("seed:       %v\ngeneration: %v\n", g.seed, g.gen)
+		for range inf {
+			buf[index] = inf[index]
+			index++
+		}
+	*/
 	//fmt.Println(index)
 
 	//w := bufio.NewWriterSize(os.Stdout, len(buf))
+	sb := strings.Builder{}
 
-	//w.WriteString(fmt.Sprintf("seed:       %v\ngeneration: %v\n", g.seed, g.gen))
+	fmt.Print("\u001b[1;1H")
+	//fmt.Print("\u001b[2K")
+	fmt.Println(fmt.Sprintf("\u001B[0mseed:       %v\ngeneration: %v\n", g.seed, g.gen))
+
 	for y := 0; y < g.h; y++ {
 		for x := 0; x < g.w; x++ {
 			s := g.data[y*g.w+x] //[x]
 			if s == 0 {
-				buf[index] = '.'
+				sb.WriteString("\u001b[34m. ")
 			} else {
-				buf[index] = '#'
+				sb.WriteString("\u001b[31m# ")
 			}
-			buf[index+1] = ' '
-			index += 2
-			//w.WriteString(map[int]string{0: ". ", 1: "# ", 2:"X "}[g.data[y][x]])
 		}
+		sb.WriteRune('\n')
+	}
+
+	os.Stdout.WriteString(sb.String())
+
+	/*
+		for y := 0; y < g.h; y++ {
+			for x := 0; x < g.w; x++ {
+				s := g.data[y*g.w+x] //[x]
+				if s == 0 {
+					buf[index] = '.'
+				} else {
+					buf[index] = '#'
+				}
+				buf[index+1] = ' '
+				index += 2
+				//w.WriteString(map[int]string{0: ". ", 1: "# ", 2:"X "}[g.data[y][x]])
+			}
+			buf[index] = '\n'
+			index++
+			//w.WriteString("\n")
+		}
+		//fmt.Println(index)
+
 		buf[index] = '\n'
 		index++
-		//w.WriteString("\n")
-	}
-	//fmt.Println(index)
 
-	buf[index] = '\n'
-	index++
+		os.Stdout.Write(buf[:index])
 
-	os.Stdout.Write(buf[:index])
+	*/
 	//os.Stdout.WriteString(fmt.Sprint(buf))
 
 	//w.Flush()
