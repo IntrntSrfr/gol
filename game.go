@@ -1,6 +1,7 @@
 package gol
 
 import (
+	"errors"
 	"fmt"
 	"image/gif"
 	"io"
@@ -10,9 +11,17 @@ import (
 	"time"
 )
 
-func NewGame(seed int64, height, width, iters, delay int, wrap, display bool, out io.Writer, scale int) {
-	grid := NewGrid(height, width, seed, wrap)
-	bufGrid := NewGrid(height, width, seed, wrap)
+func NewGame(seed int64, height, width, iters, delay int, wrap, display bool, out io.Writer, scale int, skip bool) {
+	grid, err := NewGrid(height, width, seed, wrap)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	bufGrid, err := NewGrid(height, width, seed, wrap)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
 
 	rand.Seed(seed)
 
@@ -30,7 +39,7 @@ func NewGame(seed int64, height, width, iters, delay int, wrap, display bool, ou
 
 	// scale of resulting gif
 
-	if display {
+	if display && !skip {
 		fmt.Print("\u001b[2J")
 	}
 	for i := 0; i < iters; i++ {
@@ -43,7 +52,7 @@ func NewGame(seed int64, height, width, iters, delay int, wrap, display bool, ou
 			render.Delay = append(render.Delay, 10)
 		}
 
-		if display {
+		if display && !skip {
 			grid.Show()
 			time.Sleep(time.Millisecond * time.Duration(delay))
 		}
@@ -89,7 +98,10 @@ func (g *Grid) Step(src *Grid) {
 	g.gen = g.gen + 1
 }
 
-func NewGrid(h, w int, seed int64, wrap bool) *Grid {
+func NewGrid(h, w int, seed int64, wrap bool) (*Grid, error) {
+	if h <= 0 || w <= 0 {
+		return nil, errors.New("Grid dimensions must be positive")
+	}
 	grid := make([]int, h*w)
 	return &Grid{
 		data: grid,
@@ -97,7 +109,7 @@ func NewGrid(h, w int, seed int64, wrap bool) *Grid {
 		w:    w,
 		seed: seed,
 		wrap: wrap,
-	}
+	}, nil
 }
 
 func (g *Grid) DeepCopy(dst *Grid) {
@@ -186,6 +198,8 @@ func (g *Grid) Show() {
 
 	//w := bufio.NewWriterSize(os.Stdout, len(buf))
 	sb := strings.Builder{}
+
+	fmt.Print("\u001b[2J")
 
 	fmt.Print("\u001b[1;1H")
 	//fmt.Print("\u001b[2K")
