@@ -20,7 +20,7 @@ func main() {
 	flag.IntVar(&delay, "delay", 150, "delay per frame, useless if -show is not used")
 	flag.Parse()
 
-	out, _ := os.Create("./example.gif")
+	out, _ := os.Create("./out.gif")
 
 	gol.NewGame(time.Now().Unix(), 85, 256, iters, delay, true, *display, out, 4)
 
