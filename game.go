@@ -11,16 +11,22 @@ import (
 	"time"
 )
 
-func NewGame(seed int64, height, width, iters, delay int, wrap, display bool, out io.Writer, scale int, skip bool) {
+type Game struct {
+	grid    *Grid
+	bufGrid *Grid
+	render  *gif.GIF
+}
+
+func NewGame(seed int64, height, width int, wrap bool) (*Game, error) {
 	grid, err := NewGrid(height, width, seed, wrap)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return nil, err
 	}
 	bufGrid, err := NewGrid(height, width, seed, wrap)
 	if err != nil {
 		fmt.Println(err)
-		return
+		return nil, err
 	}
 
 	rand.Seed(seed)
@@ -32,37 +38,49 @@ func NewGame(seed int64, height, width, iters, delay int, wrap, display bool, ou
 	}
 	grid.DeepCopy(bufGrid)
 
-	var render *gif.GIF
-	if out != nil {
-		render = &gif.GIF{}
+	return &Game{
+		grid:    grid,
+		bufGrid: bufGrid,
+	}, nil
+}
+
+func (g *Game) Export(out io.Writer) error {
+	if g.render == nil {
+		return errors.New("there is nothing to export")
+	}
+	return SaveGif(g.render, out)
+}
+
+func (g *Game) Run(iterations, delay int, show, skip bool, export string, scale int) {
+
+	if export != "" {
+		g.render = &gif.GIF{}
 	}
 
 	// scale of resulting gif
 
-	if display && !skip {
+	if show && !skip {
 		fmt.Print("\u001b[2J")
 	}
-	for i := 0; i < iters; i++ {
+	for i := 0; i < iterations; i++ {
 
-		grid.Step(bufGrid)
-		grid.DeepCopy(bufGrid)
+		g.grid.Step(g.bufGrid)
+		g.grid.DeepCopy(g.bufGrid)
 
-		if render != nil {
-			render.Image = append(render.Image, newFrame(grid, scale))
-			render.Delay = append(render.Delay, 10)
+		if export != "" {
+			g.render.Image = append(g.render.Image, newFrame(g.grid, scale))
+			g.render.Delay = append(g.render.Delay, 10)
 		}
 
-		if display && !skip {
-			grid.Show()
+		if show && !skip {
+			g.grid.Show()
 			time.Sleep(time.Millisecond * time.Duration(delay))
 		}
 	}
-	if display {
-		grid.Show()
+	if show {
+		g.grid.Show()
+		fmt.Print("\u001b[0m")
 	}
-
-	SaveGif(render, out)
-
 }
 
 type Grid struct {
