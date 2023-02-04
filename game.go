@@ -15,32 +15,29 @@ type Game struct {
 	grid    *Grid
 	bufGrid *Grid
 	render  *gif.GIF
+	rng     *rand.Rand
 }
 
 func NewGame(seed int64, height, width int, wrap bool) (*Game, error) {
+	rng := rand.New(rand.NewSource(seed))
 	grid, err := NewGrid(height, width, seed, wrap)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 	bufGrid, err := NewGrid(height, width, seed, wrap)
 	if err != nil {
-		fmt.Println(err)
 		return nil, err
 	}
 
-	rand.Seed(seed)
-
-	l := (grid.h * grid.w) / 4
-	for l > 0 {
-		grid.Set(rand.Intn(grid.w), rand.Intn(grid.h), 1)
-		l--
+	for i := 0; i < (grid.h*grid.w)/6; i++ {
+		grid.Set(rng.Intn(grid.w), rng.Intn(grid.h), 1)
 	}
 	grid.DeepCopy(bufGrid)
 
 	return &Game{
 		grid:    grid,
 		bufGrid: bufGrid,
+		rng:     rng,
 	}, nil
 }
 
@@ -52,26 +49,19 @@ func (g *Game) Export(out io.Writer) error {
 }
 
 func (g *Game) Run(iterations, delay int, show, skip bool, export string, scale int) {
-
 	if export != "" {
 		g.render = &gif.GIF{}
 	}
-
-	// scale of resulting gif
-
 	if show && !skip {
 		fmt.Print("\u001b[2J")
 	}
 	for i := 0; i < iterations; i++ {
-
 		g.grid.Step(g.bufGrid)
 		g.grid.DeepCopy(g.bufGrid)
-
 		if export != "" {
 			g.render.Image = append(g.render.Image, newFrame(g.grid, scale))
 			g.render.Delay = append(g.render.Delay, 10)
 		}
-
 		if show && !skip {
 			g.grid.Show()
 			time.Sleep(time.Millisecond * time.Duration(delay))

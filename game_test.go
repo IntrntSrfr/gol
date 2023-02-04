@@ -3,8 +3,8 @@ package gol
 import "testing"
 
 var (
-	grid    = NewGrid(64, 64, 0, true)
-	bufGrid = NewGrid(64, 64, 0, true)
+	grid, _    = NewGrid(64, 64, 0, true)
+	bufGrid, _ = NewGrid(64, 64, 0, true)
 )
 
 func BenchmarkGrid_Step(b *testing.B) {
